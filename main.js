@@ -1,10 +1,14 @@
 $.ajaxSetup({async: false});
 
 var map;
-$.getJSON('DengueTN.json', function (data) {
+var clickarea=0;
+$.getJSON('DengueTN.json', function (data) {  //DengueTN.json  OpenDataCase
     DengueTN = data
 });
-var currentPlayIndex = false;
+$.getJSON('OpenDataBI.json', function (data) { 
+    BITN = data
+});
+
 
 function initialize() {
     /*map setting*/
@@ -20,8 +24,8 @@ function initialize() {
     cunli.forEach(function (value) {
         var key = value.getProperty('T_Name') + value.getProperty('V_Name');
         var count = 0;
-        if (DengueTN[key]) {
-            DengueTN[key].forEach(function (val) {
+        if(DengueTN[key]) {
+            DengueTN[key].forEach(function(val) {
                 count += val[1];
             });
         }
@@ -40,114 +44,169 @@ function initialize() {
     });
 
     map.data.addListener('mouseover', function (event) {
-        var Cunli = event.feature.getProperty('T_Name') + event.feature.getProperty('V_Name');
-        map.data.revertStyle();
-        map.data.overrideStyle(event.feature, {fillColor: 'white'});
-        $('#detail > #content').empty();
-        $('#detail > #content').append('<div>' + Cunli + ' ：' + event.feature.getProperty('num') + ' 例</div>');
-    });
+        if(!clickarea)
+        {
+            map.data.revertStyle();
+            var Cunli = event.feature.getProperty('T_Name') + event.feature.getProperty('V_Name');
+            map.data.overrideStyle(event.feature, {fillColor: 'pink'});
+            $('#detial > #content').empty();
+            $('#detial > #content').append('<div>' + Cunli + ' ：' + event.feature.getProperty('num') + ' 例</div>');
+            //Try to list all case of 登革熱
+            $('#detial > #scroll_page').empty();
+            if(DengueTN[Cunli]) {
+                $('#detial > #scroll_page').append('<table id="t1" border="1"><tr><td align="center">日期</td><td>案例數</td><td>布氏指數</td></tr>');
+                var rowi=0;
+                DengueTN[Cunli].forEach(function(val) {
+                rowi++;
+                    $('#detial > #scroll_page > #t1').append('<tr id="r'+rowi+'"><td>'+val[0]+'</td><td align="right">'+val[1]+'</td>');//</tr>');
+                    if(BITN[Cunli])
+                    {
+                        var NumOfData=BITN[Cunli].length;
+                        var findtarget=0;
+                        for(var i=0;i<NumOfData;i++)
+                        {   //只會有一筆資料
+                            if(BITN[Cunli][i][0]==val[0])
+                            {
+                            findtarget=1;
+                            $('#t1 td:last').after('<td align="right">'+BITN[Cunli][i][1]+'</td></tr>');
+                            break;
+                            }
+                        }
+                        if(!findtarget) $('#t1 td:last').after('<td></td></tr>');
+                    }else $('#t1 td:last').after('<td></td></tr>');
+                }//end of function(val)
+                );//end of forEach
+            }//end of if(DengueTN[Cunli]) 
+            $('#detial > #scroll_page >#t1').append('</table>');
+        }
+    });//end of  map.data.addListener('mouseover', function (event)
 
     map.data.addListener('mouseout', function (event) {
+    
+        if(!clickarea) //若無關注
+        {
         map.data.revertStyle();
-        $('#detail > #content').empty();
-        $('#detail > #content').append('&nbsp;');
-    });
+        $('#detial > #content').empty();
+        $('#detial > #scroll_page').empty();
 
+        }
+    });
     map.data.addListener('click', function (event) {
+    if(event.ub.button==1) //按下中鍵
+    {
+        clickarea=0; //取消關注區域
+        $('#detial > #title').empty();
+    }
+    else //按下左鍵
+    {
+        if(clickarea==1)
+        {
+        alert("欲更換關注目標，請先按滑鼠中鍵取消原關注區域");
+        return;
+        }
+        clickarea =1;//關注區域
         var Cunli = event.feature.getProperty('T_Name') + event.feature.getProperty('V_Name');
+         $('#detial > #title').append("關注"+Cunli+"中<br>(請按滑鼠中鍵取消關注)");
         if ($('#myTab a[name|="' + Cunli + '"]').tab('show').length == 0) {
             $('#myTab').append('<li><a name="' + Cunli + '" href="#' + Cunli + '" data-toggle="tab">' + Cunli +
-                    '<button class="close" onclick="closeTab(this.parentNode)">×</button></a></li>');
+                    '<button class="close" onclick="closeTab(this.parentNode)">×</button></a></li>');  //recordPNode this.parentNode
             $('#myTabContent').append('<div class="tab-pane fade" id="' + Cunli + '"><div></div></div>');
             $('#myTab a:last').tab('show');
             createStockChart(Cunli);
             $('#myTab li a:last').click(function (e) {
                 $(window).trigger('resize');
-            });
-        }
+            });//end of $('#myTab li a:last').click(function (e) 
+        }//end of if ($('#myTab a[name|="' + Cunli + '"]').tab('show').length == 0)
+    }//end of else
     });
     createStockChart('total');
-
-    $('#playButton').click(function () {
-        var maxIndex = DengueTN['total'].length;
-        if (false === currentPlayIndex) {
-            currentPlayIndex = 0;
-        } else {
-            currentPlayIndex += 1;
-        }
-
-        if (currentPlayIndex < maxIndex) {
-            showDateMap(new Date(DengueTN['total'][currentPlayIndex][0]));
-            setTimeout(function () {
-                $('#playButton').trigger('click');
-            }, 300);
-        } else {
-            currentPlayIndex = false;
-        }
-        return false;
-    });
 }
 
 function createStockChart(Cunli) {
-    var series = []
+    var series = [];
+    if(!DengueTN[Cunli]) return;
     for (var i = 0; i < DengueTN[Cunli].length; i = i + 1) {
         series.push([new Date(DengueTN[Cunli][i][0]).getTime(), DengueTN[Cunli][i][1]]);
     }
-
-    $('#' + Cunli).highcharts('StockChart', {
-        chart: {
-            alignTicks: false,
-            width: $('#myTabContent').width(),
-            height: $('#myTabContent').height()
-        },
-        rangeSelector: {
-            enabled: false
-        },
-        tooltip: {
-            enabled: true,
-            positioner: function () {
-                return {x: 10, y: 30}
-            }
-        },
-        plotOptions: {
-            series: {
-                cursor: 'pointer',
-                point: {
-                    events: {
-                        click: function () {
-                            showDateMap(new Date(this.x));
-                        }
-                    }
-                },
-            }
-        },
-        series: [{
-                type: 'column',
-                name: Cunli,
-                data: series,
-            }]
-    });
-}
-
-function showDateMap(clickedDate) {
-    var yyyy = clickedDate.getFullYear().toString();
-    var mm = (clickedDate.getMonth() + 1).toString();
-    var dd = clickedDate.getDate().toString();
-    var clickedDateKey = yyyy + '-' + (mm[1] ? mm : "0" + mm[0]) + '-' + (dd[1] ? dd : "0" + dd[0]);
-    $('#detail > #title').text(clickedDateKey);
-    cunli.forEach(function (value) {
-        var key = value.getProperty('T_Name') + value.getProperty('V_Name');
-        var count = 0;
-        if (DengueTN[key]) {
-            DengueTN[key].forEach(function (val) {
-                var recordDate = new Date(val[0]);
-                if (recordDate <= clickedDate) {
-                    count += val[1];
-                }
-            });
+    if((!(Cunli=="total"))&&(BITN[Cunli]))
+    {
+        var series2=[];
+        for(var j=0;j<BITN[Cunli].length;j++)
+        {
+         series2.push([new Date(BITN[Cunli][j][0]).getTime(),BITN[Cunli][j][1]]);
         }
-        value.setProperty('num', count);
-    });
+        $('#' + Cunli).highcharts('StockChart', {
+            chart: {
+                alignTicks: false,
+                width: $('#myTabContent').width(),
+                height: $('#myTabContent').height()
+            },
+            rangeSelector: {
+                enabled: false
+            },
+            tooltip: {
+                enabled: true,
+                positioner: function () {
+                    return {x: 10, y: 30}
+                }
+            },
+            plotOptions: {
+                series: {
+                    cursor: 'pointer',
+                    point: {
+                        events: {
+                            click: function () {
+                            
+                            }
+                        }
+                    },
+                }
+            },
+            series: [{
+                    type: 'column',
+                    name: Cunli,
+                    data: series,
+                },{type:'column', name:"布氏指數", data:series2,}]
+        });
+
+
+
+    }else
+    { 
+        $('#' + Cunli).highcharts('StockChart', {
+            chart: {
+                alignTicks: false,
+                width: $('#myTabContent').width(),
+                height: $('#myTabContent').height()
+            },
+            rangeSelector: {
+                enabled: false
+            },
+            tooltip: {
+                enabled: true,
+                positioner: function () {
+                    return {x: 10, y: 30}
+                }
+            },
+            plotOptions: {
+                series: {
+                    cursor: 'pointer',
+                    point: {
+                        events: {
+                            click: function () {
+                            
+                            }
+                        }
+                    },
+                }
+            },
+            series: [{
+                    type: 'column',
+                    name: Cunli,
+                    data: series,
+                }]
+        });
+    }//end of if(cunli=="'total'")...else
 }
 
 $(window).resize(function () {
