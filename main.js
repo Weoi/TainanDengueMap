@@ -8,7 +8,11 @@ $.getJSON('DengueTN.json', function (data) {  //DengueTN.json  OpenDataCase
 $.getJSON('OpenDataBI.json', function (data) { 
     BITN = data
 });
-
+function CancelAreaFocus()
+{
+        clickarea=0; //取消關注區域
+        $('#detial > #title').empty();
+}
 
 function initialize() {
     /*map setting*/
