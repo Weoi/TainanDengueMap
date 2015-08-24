@@ -5,7 +5,7 @@ var clickarea=0;
 $.getJSON('DengueTN.json', function (data) {  //DengueTN.json  OpenDataCase
     DengueTN = data
 });
-$.getJSON('OpenDataBI.json', function (data) { 
+$.getJSON('OpenDataBI2.json', function (data) { 
     BITN = data
 });
 function CancelAreaFocus()
